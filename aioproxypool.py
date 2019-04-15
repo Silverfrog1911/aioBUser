@@ -16,10 +16,9 @@ class GetProxies:
         self.r = redis.Redis(decode_responses=True)
         self.rset = 'sproxies' # redis集合, 存储已提取的代理
         
-#    
     def start(self):
         self.vset = 'vproxies' # redis集合, 存储有效的代理
-        n = 0
+        n = 0 # 用于间隔标识，每十次检验一次sproxies中代理是否有效
         while True:
             n += 1
             if n == 10:
@@ -32,44 +31,46 @@ class GetProxies:
             time.sleep(5)
             
     def test_proxy(self):
+        '''
+            取出sproxies中代理，检验其有效性
+        '''
         proxy_list = self.r.smembers(self.rset) 
         self.run(proxy_list)
         
     def get_proxy(self):
+        '''
+            这个函数有点多余，不过我喜欢这样写
+        '''
         proxy_list = self.get_api()
         if proxy_list:
             self.r.sadd(self.rset, *proxy_list)
             self.run(proxy_list)
-#            p_list = [x for x in proxy_list if not self.r.sismember(self.rset, x)]
-#            if p_list:
-#                print('去重后代理数量为：%d' % len(p_list))
-#                self.r.sadd(self.rset, *p_list)
-#                self.run(p_list)
         
     def get_api(self):
-        api = 'http://gec.ip3366.net/api/?key=20190406100218868&getnum=500&area=1&formats=2&proxytype=01'
-        resp = requests.get(api, headers=self.headers)
-        try:
-            data = json.loads(resp.text, strict=False)
-            return ['http://' + proxy['Ip'] + ':' + str(proxy['Port']) for proxy in data]
-             
-        except json.decoder.JSONDecodeError:
-            print('JSONDecodeError')
+        '''
+            获取代理(http://127.0.0.1:12306)，返回列表
+        '''
+        pass
+    
     
     async def get(self, proxy, session):
         '''
+            协程函数，每个协程运行的函数
         '''
         try:
             async with session.get(self.url, timeout=10, proxy=proxy) as resp:
                 if resp.status == 200:
                     self.r.sadd(self.vset, proxy)
-                    
+        # 这三个异常都是代理失效造成的            
         except (aiohttp.ClientError, aiohttp.client_exceptions.ClientConnectorError, asyncio.TimeoutError):
             pass
         
        
     
     async def main(self, proxy_list):
+        '''
+            所有协程
+        '''
         tasks = []
         async with asyncio.Semaphore(500):
             session = aiohttp.ClientSession(headers=self.headers)
@@ -80,6 +81,9 @@ class GetProxies:
             await session.close()
         
     def run(self, proxy_list):
+        '''
+            运行协程
+        '''
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.main(proxy_list))
