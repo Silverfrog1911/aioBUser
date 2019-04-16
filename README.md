@@ -4,6 +4,12 @@ python3.5以上
 # 依赖库
 pymongo、redis、requests、aiohttp
 
+# 各模块功能
+aioproxypool.py: asyncio+aiohttp验证从代理api获取的代理  
+aiouser.py: asyncio+aiohttp抓取批量用户信息  
+infospider.py: requests抓取单个用户信息  
+aiouser_retry.py: asyncio+aiohttp抓取aiouser失败的用户，这是个死循环，如果还是失败则会重新抓取，直到数据库没有任务。
+
 # 注意
 1、Redis服务开启  
 2、mongodb服务开启  
